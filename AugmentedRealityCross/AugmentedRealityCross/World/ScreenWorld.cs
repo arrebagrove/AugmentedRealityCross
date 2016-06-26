@@ -111,8 +111,6 @@ namespace AugmentedRealityCross.World
 
         public void UpdateCentre(Location newCentreOfWorld)
         {
-            // TODO: allow centre to update
-            return;
             CentreOfWorld = newCentreOfWorld;
             RepositionElements();
         }
