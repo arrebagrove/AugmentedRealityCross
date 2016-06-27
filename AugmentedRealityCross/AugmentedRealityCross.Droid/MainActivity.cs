@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Android.App;
 using Android.Content;
@@ -16,24 +17,24 @@ using Location = Android.Locations.Location;
 
 namespace AugmentedRealityCross.Droid
 {
-	[Activity (Label = "AugmentedRealityCross.Droid", MainLauncher = true, Icon = "@drawable/icon")]
-	public class MainActivity : Activity, ILocationListener, ISensorEventListener
-	{
-	    public MainViewModel ViewModel { get; set; }
+    [Activity(Label = "AugmentedRealityCross.Droid", MainLauncher = true, Icon = "@drawable/icon")]
+    public class MainActivity : Activity, ILocationListener, ISensorEventListener
+    {
+        public MainViewModel ViewModel { get; set; }
 
         private LocationManager locationManager;
 
         private SensorManager sensorManager;
-	    private Sensor orientation;
+        private Sensor orientation;
 
         private RelativeLayout RootLayout { get; set; }
 
-        protected override void OnCreate (Bundle bundle)
-		{
-			base.OnCreate (bundle);
+        protected override void OnCreate(Bundle bundle)
+        {
+            base.OnCreate(bundle);
 
-			// Set our view from the "main" layout resource
-			SetContentView (Resource.Layout.Main);
+            // Set our view from the "main" layout resource
+            SetContentView(Resource.Layout.Main);
 
             ViewModel = new MainViewModel(WorldConfiguration.Android);
 
@@ -41,7 +42,7 @@ namespace AugmentedRealityCross.Droid
             var widthInDp = ConvertPixelsToDp(metrics.WidthPixels);
             var heightInDp = ConvertPixelsToDp(metrics.HeightPixels);
 
-            ViewModel.UpdateWorld(metrics.WidthPixels, metrics.HeightPixels,Vector3.Up);
+            ViewModel.UpdateWorld(metrics.WidthPixels, metrics.HeightPixels);
 
             RootLayout = this.FindViewById<RelativeLayout>(Resource.Id.myMainLayout);
 
@@ -49,11 +50,57 @@ namespace AugmentedRealityCross.Droid
             locationManager.RequestLocationUpdates(LocationManager.NetworkProvider, 50, 0, this);
 
             sensorManager = GetSystemService(Context.SensorService) as SensorManager;
-            orientation= sensorManager?.GetDefaultSensor(SensorType.Orientation);
-            sensorManager.RegisterListener(this,orientation, SensorDelay.Normal);
+            //orientation= sensorManager?.GetDefaultSensor(SensorType.Orientation);
+            //sensorManager.RegisterListener(this,orientation, SensorDelay.Normal);
+
+            accelerometer = sensorManager?.GetDefaultSensor(SensorType.Accelerometer);
+            magnetometer = sensorManager?.GetDefaultSensor(SensorType.MagneticField);
+            sensorManager.RegisterListener(this, accelerometer, SensorDelay.Ui);
+            sensorManager.RegisterListener(this, magnetometer, SensorDelay.Ui);
+
 
             PopulateWorld();
-		}
+        }
+
+        Sensor accelerometer;
+        Sensor magnetometer;
+
+        //protected void onPause()
+        //{
+        //    super.onPause();
+        //    mSensorManager.unregisterListener(this);
+        //}
+
+        public void onAccuracyChanged(Sensor sensor, int accuracy) { }
+
+        float[] mGravity;
+        float[] mGeomagnetic;
+        public void OnSensorChanged(SensorEvent evt)
+        {
+            if (evt.Sensor.Type == SensorType.Accelerometer)
+                mGravity = evt.Values.ToArray();
+            if (evt.Sensor.Type == SensorType.MagneticField)
+                mGeomagnetic = evt.Values.ToArray();
+            if (mGravity != null && mGeomagnetic != null)
+            {
+                var R = new float[9];
+                var I = new float[9];
+                var success = SensorManager.GetRotationMatrix(R, I, mGravity, mGeomagnetic);
+                if (success)
+                {
+                    var orientation = new float[3];
+                    SensorManager.GetOrientation(R, orientation);
+
+                    if (Interlocked.CompareExchange(ref Updating, 1, 0) == 1) return;
+                    RunOnUiThread(() =>
+                    {
+                        UpdateElementsOnScreen(orientation[2], orientation[1], orientation[0]);
+                        Interlocked.Exchange(ref Updating, 0);
+                    });
+                }
+            }
+        }
+
 
         private int ConvertPixelsToDp(float pixelValue)
         {
@@ -62,42 +109,42 @@ namespace AugmentedRealityCross.Droid
         }
 
         public override void OnConfigurationChanged(Configuration newConfig)
-	    {
-	        base.OnConfigurationChanged(newConfig);
+        {
+            base.OnConfigurationChanged(newConfig);
 
-            ViewModel.UpdateWorld(newConfig.ScreenWidthDp, newConfig.ScreenHeightDp, Vector3.Up);
-	    }
+            ViewModel.UpdateWorld(newConfig.ScreenWidthDp, newConfig.ScreenHeightDp);
+        }
 
-	    public void OnLocationChanged(Location location)
-	    {
-	       ViewModel.UpdateWorldLocation(location.Latitude,location.Longitude);
-	    }
+        public void OnLocationChanged(Location location)
+        {
+            ViewModel.UpdateWorldLocation(location.Latitude, location.Longitude);
+        }
 
-	    public void OnProviderDisabled(string provider)
-	    {
-	    }
+        public void OnProviderDisabled(string provider)
+        {
+        }
 
-	    public void OnProviderEnabled(string provider)
-	    {
-	    }
+        public void OnProviderEnabled(string provider)
+        {
+        }
 
-	    public void OnStatusChanged(string provider, Availability status, Bundle extras)
-	    {
-	    }
+        public void OnStatusChanged(string provider, Availability status, Bundle extras)
+        {
+        }
 
-	    public void OnAccuracyChanged(Sensor sensor, SensorStatus accuracy)
-	    {
-	    }
+        public void OnAccuracyChanged(Sensor sensor, SensorStatus accuracy)
+        {
+        }
 
 
         private int Updating;
-        public void OnSensorChanged(SensorEvent e)
-	    {
+        public void OnSensorChangedOld(SensorEvent e)
+        {
 
             if (Interlocked.CompareExchange(ref Updating, 1, 0) == 1) return;
             RunOnUiThread(() =>
             {
-                UpdateElementsOnScreen(e.Values[2],e.Values[1],e.Values[0]);
+                UpdateElementsOnScreen(e.Values[2], e.Values[1], e.Values[0]);
                 Interlocked.Exchange(ref Updating, 0);
             });
 
@@ -110,7 +157,7 @@ namespace AugmentedRealityCross.Droid
             var elements = ViewModel.WorldEvents;
             foreach (var evt in elements)
             {
-                var tv = new TextView(this) { Text = evt.Element.Type};
+                var tv = new TextView(this) { Text = evt.Element.Type };
                 RootLayout.AddView(tv);
 
                 events[tv] = evt;
@@ -129,11 +176,11 @@ namespace AugmentedRealityCross.Droid
 
         }
 
-        private void UpdateElementsOnScreen(float roll,float pitch,float yaw)
+        private void UpdateElementsOnScreen(float roll, float pitch, float yaw)
         {
-            roll = (float)((double)roll).ToRad();
-            pitch = (float)((double)pitch).ToRad();
-            yaw = (float)((double)yaw).ToRad();
+            //roll = (float)((double)roll).ToRad();
+            //pitch = (float)((double)pitch).ToRad();
+            //yaw = (float)((double)yaw).ToRad();
 
             //var roll = reading.RollDegrees * Math.PI / 180.0;
             //var pitch = reading.PitchDegrees * Math.PI / 180.0;
@@ -154,7 +201,7 @@ namespace AugmentedRealityCross.Droid
                 var offset = ViewModel.CalculateScreenOffset(element, fe.Width, fe.Height, roll, pitch, yaw);
                 fe.TranslationX = (float)offset.TranslateX;
                 fe.TranslationY = (float)offset.TranslateY;
-                fe.ScaleX = (float) offset.Scale;
+                fe.ScaleX = (float)offset.Scale;
                 fe.ScaleY = (float)offset.Scale;
 
                 //System.Diagnostics.Debug.WriteLine($"{element.Element.Type} {offset.TranslateX} {offset.TranslateY} {offset.Scale}");

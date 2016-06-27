@@ -128,7 +128,7 @@ namespace AugmentedRealityCross
             World.UpdateRangeOfWorld(50.0);
         }
 
-        public void UpdateWorld(double screenWidth, double screenHeight, Vector3 cameraUp = default(Vector3))
+        public void UpdateWorld(double screenWidth, double screenHeight)
         {
             World.Initialize(screenWidth, screenHeight);
         }

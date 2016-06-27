@@ -17,7 +17,7 @@ namespace AugmentedRealityCross.World
         public static IDictionary<WorldConfiguration, Tuple<Vector3,Matrix>> Configurations =
         new Dictionary<WorldConfiguration, Tuple<Vector3, Matrix>>
         {
-          {WorldConfiguration.Android, new Tuple<Vector3,Matrix>(Vector3.Up, Matrix.CreateRotationY(MathHelper.PiOver2) *Matrix.CreateRotationZ(-MathHelper.PiOver2))},
+          {WorldConfiguration.Android, new Tuple<Vector3,Matrix>(Vector3.Up, Matrix.CreateRotationY(-MathHelper.PiOver2)*Matrix.CreateRotationZ(-MathHelper.PiOver2))},
           {WorldConfiguration.iOS, new Tuple<Vector3,Matrix>(Vector3.Down, Matrix.CreateRotationZ(-MathHelper.PiOver2))},
           {WorldConfiguration.WindowsMobile, new Tuple<Vector3,Matrix>(Vector3.Down, Matrix.CreateRotationY(MathHelper.PiOver2) *Matrix.CreateRotationZ(-MathHelper.PiOver2))}
         };
